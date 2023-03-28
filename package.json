@@ -1,0 +1,19 @@
+{
+  "name": "forde",
+  "version": "1.0.0",
+  "description": "",
+  "main": "script.js",
+  "scripts": {
+    "start": "node script.js",
+    "phantomjs": "phantomjs-2.1.1-macosx/bin/phantomjs "
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "node-xlsx": "^0.21.0",
+    "puppeteer": "^19.8.0",
+    "puppeteer-core": "^19.8.0",
+    "spooky": "^0.2.5",
+    "webpage": "^0.3.0"
+  }
+}
