@@ -10,10 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "chalk": "4.1.2",
     "node-xlsx": "^0.21.0",
     "puppeteer": "^19.8.0",
-    "puppeteer-core": "^19.8.0",
-    "spooky": "^0.2.5",
-    "webpage": "^0.3.0"
+    "puppeteer-core": "^19.8.0"
   }
 }

@@ -9,6 +9,8 @@ const sizeFlag = '.sku-item-left';
 const sizeNameFlag = '.sku-item-name';
 const sizePriceFlag = '.sku-item-left';
 const sizeRemainFlag = '.sku-item-left';
+const notFound = 404;
+const delist = 405;
 let browser;
 let initFlag = false;
 
@@ -40,7 +42,9 @@ async function initPage() {
 async function goToDetail(page, url) {
   await page.goto(url);
 
-  if (!initFlag) {
+  // 判断验证码拦截，模拟手动拖拽
+  await page.waitForSelector('body');
+  if (await page.title() === '验证码拦截') {
     await page.waitForSelector(slideFlag);
 
     const item = await page.$(slideFlag);
@@ -54,8 +58,24 @@ async function goToDetail(page, url) {
     }
     await page.mouse.up();
   }
-  initFlag = true;
-  await page.waitForSelector(colorFlag);
+
+  // 判断是否是404，下架，从而进入详情页。
+  await page.waitForSelector('body[data-spm]');
+  const title = await page.title();
+  if(title.includes('404')) {
+    return notFound;
+  } else {
+    try {
+      // 判断下架或者进入详情页
+      const waitReturn =  await Promise.any([page.waitForSelector(colorFlag), page.waitForSelector('.mod-detail-offline-title')])
+      const htmlContent = await (await waitReturn.getProperty('innerHTML')).jsonValue();
+      if (htmlContent.includes('商品已下架')) {
+        return delist;
+      }
+    } catch (error) {
+      console.warn(error);
+    }
+  }
 
 }
 
@@ -86,7 +106,12 @@ async function initPrase() {
 }
 
 async function getYouNeed(page, url) {
-  await goToDetail(page, url)
+  const detailStatus = await goToDetail(page, url);
+  if(detailStatus === notFound) {
+    return notFound;
+  } else if(detailStatus === delist ) {
+    return delist;
+  }
   return await getSizeRemaining(page);
 }
 
@@ -94,5 +119,4 @@ async function closeBrowser() {
   await browser.close();
 }
 
-
-module.exports = { initPrase, closeBrowser, getYouNeed };
+module.exports = { initPrase, closeBrowser, getYouNeed, notFound, delist };
