@@ -12,7 +12,6 @@
     "chalk": "4.1.2",
     "dayjs": "^1.11.7",
     "exceljs": "^4.3.0",
-    "pkg": "^5.8.1",
     "puppeteer": "^19.8.0",
     "puppeteer-core": "^19.8.0"
   }
