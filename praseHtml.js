@@ -12,13 +12,14 @@ const notFound = 404;
 const delist = 405;
 let browser;
 let initFlag = false;
-
+const executablePath = 'C:\Program Files\Google\Chrome\Application\chrome.exe';
 
 async function initPage() {
   if (!browser) {
     browser = await puppeteer.launch({
       headless:false,
       ignoreHTTPSErrors: true,
+      executablePath,
       ignoreDefaultArgs:['--enable-automation']
     });
   }
@@ -67,6 +68,7 @@ async function goToDetail(page, url) {
   await page.waitForSelector('body[data-spm]');
   const title = await page.title();
   if(title.includes('404')) {
+    await page.waitForNavigation();
     return notFound;
   } else {
     try {
