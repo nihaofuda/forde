@@ -1,5 +1,4 @@
-const puppeteer = require('puppeteer-core')
-const executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const puppeteer = require('puppeteer')
 // 滑动按钮标识；
 const slideFlag = '#nc_1_n1z';
 // 颜色按钮标识；
@@ -18,7 +17,6 @@ let initFlag = false;
 async function initPage() {
   if (!browser) {
     browser = await puppeteer.launch({
-      executablePath,
       headless:false,
       ignoreDefaultArgs:['--enable-automation']
     });
@@ -26,11 +24,16 @@ async function initPage() {
   
   const UA = `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36`
   const page = await browser.newPage();
-  await page.setUserAgent(UA)
+  await page.setUserAgent(UA);
   await page.evaluateOnNewDocument(() => {
     Object.defineProperty(navigator, 'webdriver', {
       get: () => false,
     });
+  });
+  page.on('request',async (request) => {
+    if (request.url().includes('sale.1688.com/factory/home.html')) {
+      await page.goBack();
+    }
   });
   await page.setViewport({
     width: 1200,
@@ -67,7 +70,7 @@ async function goToDetail(page, url) {
   } else {
     try {
       // 判断下架或者进入详情页
-      const waitReturn =  await Promise.any([page.waitForSelector(colorFlag), page.waitForSelector('.mod-detail-offline-title')])
+      const waitReturn =  await Promise.any([page.waitForSelector(colorFlag, { timeout: 10000 }), page.waitForSelector('.mod-detail-offline-title', { timeout: 10000 })])
       const htmlContent = await (await waitReturn.getProperty('innerHTML')).jsonValue();
       if (htmlContent.includes('商品已下架')) {
         return delist;
