@@ -33,6 +33,8 @@ for (let i = 0; i <= worksheet.rowCount; i++) {
     if (i>=4) {
         const row = worksheet.getRow(i);
         await hanldeData('B', 'D', 'E', row, page);
+        await hanldeData('G', 'I', 'J', row, page);
+        await hanldeData('L', 'N', 'O', row, page);
     }
   }
 
@@ -48,6 +50,9 @@ for (let i = 0; i <= worksheet.rowCount; i++) {
 async function hanldeData(c1, c2, c3, row, page) {
   const col1 = getCellValue(row.getCell(c1).value);
   const sku = getCellValue(row.getCell(c2).value);
+  if (!col1) {
+    return;
+  }
   const testData = await getYouNeed(page, col1);
   Log(chalk.green.bgWhite(`\n正在处理${sku}的内容\n`));
   if(testData === notFound) {
@@ -71,7 +76,7 @@ async function hanldeData(c1, c2, c3, row, page) {
 }
 
 function getCellValue(cellValue) {
-  if (typeof cellValue === 'object') {
+  if (typeof cellValue === 'object' && cellValue !== null) {
     return cellValue.hyperlink;
   } else {
     return cellValue;

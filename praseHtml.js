@@ -18,6 +18,7 @@ async function initPage() {
   if (!browser) {
     browser = await puppeteer.launch({
       headless:false,
+      ignoreHTTPSErrors: true,
       ignoreDefaultArgs:['--enable-automation']
     });
   }
@@ -43,7 +44,7 @@ async function initPage() {
 }
 
 async function goToDetail(page, url) {
-  await page.goto(url);
+  await page.goto(url, {timeout: 0});
 
   // 判断验证码拦截，模拟手动拖拽
   await page.waitForSelector('body');
