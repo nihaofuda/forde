@@ -10,8 +10,8 @@ process.on('message', async (tasks) => {
     console.log(`Worker process ${process.pid} received ${tasks.length} tasks.`);
     const page = await initPrase();
     for(let i = 0; i < tasks.length; i++) {
-        const { c1, c2, c3, row } = tasks[i];
-        await hanldeData(c1, c2, c3, row, page)
+        const { f, s, t, row } = tasks[i];
+        await hanldeData(f, s, t, row, page)
     }
     // closeBrowser();
     process.send(`${process.pid}success`);
@@ -64,6 +64,5 @@ process.on('message', async (tasks) => {
   }
 
   function handleMessage(message, row, index = 'E', type = 'error') {
-    console.log(message);
     process.send({ message, rowI: row.index, index, type });
   }

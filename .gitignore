@@ -1,2 +1,4 @@
 node_modules
 *.xlsx
+./error.txt
+./info.txt

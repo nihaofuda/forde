@@ -33,7 +33,7 @@ await workbook.xlsx.readFile(excelFilePath);
 // 女装
 const worksheet = workbook.getWorksheet('女装');
 Log(chalk.green.bgWhite(`成功获取表格数据`));
-const numBrower = 3;
+const numBrower = 3; // 页面数量
 const newSheet = Array.from(Array(numBrower), () => []);
 const newSheetStatus = Array.from(Array(numBrower), () => false);
 let index = 0;
@@ -69,6 +69,9 @@ for (let i = 0; i <= worksheet.rowCount; i++) {
             
             const col1 = String(getCellValue(row.getCell(obj.f).value));
             const sku = getCellValue(row.getCell(obj.s).value);
+            if (!col1 || col1 === 'null') {
+                continue;
+            }
             obj.row = {
                 col1,
                 sku,
@@ -82,16 +85,14 @@ for (let i = 0; i <= worksheet.rowCount; i++) {
         }
         }
   }
-console.dir(newSheet);
   for (let i = 0; i < newSheet.length; i++) {
     const worker = fork('./worker.js');
-    worker.on('message',async (message) => {
-        if (typeof message === 'string') {
+    worker.on('message',async (msg) => {
+        if (typeof msg === 'string') {
             // 修改任务状态
             newSheetStatus[i] = true;
         } else {
-            console.log(message);
-            const { message, rowI, index, type } = message;
+            const { message, rowI, index, type } = msg;
             const row = worksheet.getRow(rowI);
             handleMessage(message, row,  index, type);
         }
@@ -104,6 +105,9 @@ console.dir(newSheet);
     });
     worker.send(newSheet[i]);
   }
+  setInterval(async() => {
+    await workbook.xlsx.writeFile(chinese);
+  }, 120000)
 }
 
 async function hanldeTask(list, pageList) {
