@@ -7,13 +7,33 @@ const { initPrase, closeBrowser, getYouNeed, notFound, delist } = require('./pra
 const NUM = 100;
 
 // excel文件类径
-const excelFilePath = './副本工作簿1.xlsx';
+const excelFilePath = './D&Y产品编号对照表.xlsx';
+const filePath = './file.txt';
+const errorFilePath = './error.txt';
+const infoFilePath = './info.txt';
+if (!fs.existsSync(filePath)) {
+  fs.writeFileSync(filePath, '4');
+}
+if (!fs.existsSync(errorFilePath)) {
+  fs.writeFileSync(errorFilePath, '');
+}
+if (!fs.existsSync(infoFilePath)) {
+  fs.writeFileSync(infoFilePath, '');
+}
+const fileContent = Number(fs.readFileSync(filePath, 'utf8'));
 const workbook = new ExcelJS.Workbook();
 const redStyle = {
   fill: {
     type: 'pattern',
     pattern: 'solid',
     fgColor: { argb: 'FF0000' },
+  },
+};
+const greenStyle = {
+  fill: {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: '7CFC00' },
   },
 };
 const Log = console.log;
@@ -25,49 +45,114 @@ await workbook.xlsx.readFile(excelFilePath);
 // 女装
 const worksheet = workbook.getWorksheet('女装');
 Log(chalk.green.bgWhite(`成功获取表格数据`));
-Log(chalk.green.bgWhite(`正在初始化浏览器`));
-const page = await initPrase();
-Log(chalk.green.bgWhite(`初始化浏览器成功`));
+const newSheet = Array.from(Array(10), () => []);
+const pageList = []
+for (let i =0; i< 1; i ++) {
+  pageList.push(await initPrase());
+}
+Log(chalk.green.bgWhite(`成功初始化浏览器`));
+const index = 0;
+
+const now = dayjs();
+const dateStr = now.format('YYYY-MM-DD');
+const chinese = excelFilePath.replace(/[^\u4e00-\u9fa5]/g, '') + '.xlsx';
 
 for (let i = 0; i <= worksheet.rowCount; i++) {
-    if (i>=4) {
+    try {
+      if (i>=fileContent) {
         const row = worksheet.getRow(i);
-        await hanldeData('B', 'D', 'E', row, page);
-        await hanldeData('G', 'I', 'J', row, page);
-        await hanldeData('L', 'N', 'O', row, page);
+        for (let j = 0; j<= 2;j++) {
+          if (index > 10) {
+            index %=10;
+          }
+          let obj = {};
+          if (j === 0) {
+            obj = {
+              f: 'B',
+              s: 'D',
+              t: 'E',
+              row: row
+            }
+          } else if (j === 1) {
+            obj = {
+              f: 'G',
+              s: 'I',
+              t: 'J',
+              row: row
+            }
+          } else if (j === 2) {
+            obj = {
+              f: 'L',
+              s: 'N',
+              t: 'O',
+              row: row
+            }
+          }
+          newSheet[index].push(obj);
+          const {f,s,t} = obj;
+          await hanldeData(f,s,t,row, pageList[0]);
+        }
+      }
+      if (i !==0 && i %20 ===0) {
+        await workbook.xlsx.writeFile(chinese);
+        fs.appendFileSync(infoFilePath, `${i+1}行处理完成\n`);
+        fs.writeFileSync(filePath, `${i}`);
+      }
+    } catch (error) {
+      fs.appendFileSync(errorFilePath, `${error}\n`);
+    } finally {
+      Log(chalk.green.bgWhite(`${i}成功`));
     }
   }
 
-  const now = dayjs();
-  const dateStr = now.format('YYYY-MM-DD');
+  // await Promise.all(newSheet.map(e => hanldeTask(e, pageList)));
 
-  const chinese = excelFilePath.replace(/[^\u4e00-\u9fa5]/g, '') + '-' + dateStr + '.xlsx';
+
   await workbook.xlsx.writeFile(chinese);
+  fs.writeFileSync(filePath, `4`);
+  Log(chalk.green.bgWhite(`成功!!`));
 
   closeBrowser();
 }
 
+async function hanldeTask(list, pageList) {
+  for(let i = 0; i < list.length; i++) {
+    const {f,s,t,row} = list[i];
+    await hanldeData(f,s,t,row, pageList[i]);
+  }
+}
+
 async function hanldeData(c1, c2, c3, row, page) {
-  const col1 = getCellValue(row.getCell(c1).value);
+  const col1 = String(getCellValue(row.getCell(c1).value));
   const sku = getCellValue(row.getCell(c2).value);
-  if (!col1) {
+  if (!col1 || !col1.includes('https://detail.1688.com/')) {
     return;
   }
-  const testData = await getYouNeed(page, col1);
+  let testData;
+  try {
+    testData = await getYouNeed(page, col1);
+  } catch {
+    fs.appendFileSync(errorFilePath, `${sku}\n`);
+    return;
+  }
+
   Log(chalk.green.bgWhite(`\n正在处理${sku}的内容\n`));
+  if(!testData) {
+    return;
+  }
   if(testData === notFound) {
-    handleErrorMessage(`${sku}链接404`, row, c3);
+    handleMessage(`${sku}链接404`, row, c3);
   } else if(testData === delist) {
-    handleErrorMessage(`${sku}商品已下架`, row, c3);
+    handleMessage(`${sku}商品已下架`, row, c3);
   } else {
       Object.entries(testData).forEach(([color, sizeDetail]) => {
           Log(chalk.green.bgWhite(`${color}\n`));
           sizeDetail.forEach(obj => {
               const num = getInventoryQuantity(obj.remain || '');
               if (isQuantitySufficient(num)) {
-                Log(chalk.blue(`${obj.size}库存满足数量>=${NUM}`));
+                handleMessage(`${obj.size}库存满足数量>=${NUM}`, row, c3, 'success');
               } else {
-                handleErrorMessage(`${color}-${obj.size}库存数量<${NUM}！！(当前数量${num})`, row, c3);
+                handleMessage(`${color}-${obj.size}库存数量<${NUM}！！(当前数量${num})`, row, c3);
               }
           })
       })
@@ -92,11 +177,19 @@ function getInventoryQuantity(str) {
 }
 
 // 处理错误信息
-function handleErrorMessage(errorMessage, row, index = 'E') {
-  Log(chalk.red.bold(errorMessage));
-  const cell = row.getCell(index);
-  cell.value = `${cell.value || ''}\n${errorMessage}`
-  cell.style = redStyle;
+function handleMessage(message, row, index = 'E', type = 'error') {
+  if (type ==='error') {
+    Log(chalk.red.bold(message));
+    const cell = row.getCell(index);
+    cell.value = `${cell.value || ''}\n${message}`
+    cell.style = redStyle;
+  } else if (type === 'success') {
+    Log(chalk.blue(message));
+    const cell = row.getCell(index);
+    cell.value = `${cell.value || ''}\n${message}`
+    cell.style = cell.style === redStyle ? redStyle : greenStyle;
+  }
+  
 }
 
 init();

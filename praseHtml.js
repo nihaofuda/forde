@@ -1,8 +1,10 @@
+const fs = require('fs');
 const puppeteer = require('puppeteer')
 // 滑动按钮标识；
 const slideFlag = '#nc_1_n1z';
 // 颜色按钮标识；
 const colorFlag = '.prop-item-inner-wrapper';
+const errorFilePath = './error.txt';
 // 尺码标识
 const sizeFlag = '.sku-item-left';
 const sizeNameFlag = '.sku-item-name';
@@ -19,7 +21,7 @@ async function initPage() {
     browser = await puppeteer.launch({
       headless:false,
       ignoreHTTPSErrors: true,
-      executablePath,
+      //executablePath,
       ignoreDefaultArgs:['--enable-automation']
     });
   }
@@ -36,6 +38,13 @@ async function initPage() {
     if (request.url().includes('sale.1688.com/factory/home.html')) {
       await page.goBack();
     }
+  });
+  // 监听Page.error事件
+  page.on('error', async () => {
+    fs.appendFileSync(errorFilePath, `Page crashed!\n`);
+
+    // 刷新页面
+    await page.reload();
   });
   await page.setViewport({
     width: 1200,
@@ -63,9 +72,25 @@ async function goToDetail(page, url) {
     }
     await page.mouse.up();
   }
-
   // 判断是否是404，下架，从而进入详情页。
-  await page.waitForSelector('body[data-spm]');
+  const waitReturn =  await Promise.any([page.waitForSelector('body[data-spm]'), page.waitForSelector('#nc_1_refresh1')]);
+  const htmlContent = await (await waitReturn.getProperty('innerHTML')).jsonValue();
+  if (htmlContent.includes('验证失败')) {
+    fs.appendFileSync(errorFilePath, `验证失败!\n`);
+    console.log(htmlContent);
+    await waitReturn.click();
+    const item = await page.$(slideFlag);
+    let { x, y } = await item.boundingBox();
+    x+=10;
+    y+=10;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    for (let i = 0 ; i< 300; i+=10) {
+      await page.mouse.move(x+i, y);
+    }
+    await page.mouse.up();
+    await page.waitForSelector('body[data-spm]');
+  }
   const title = await page.title();
   if(title.includes('404')) {
     await page.waitForNavigation();
@@ -88,8 +113,19 @@ async function goToDetail(page, url) {
 async function getSizeRemaining(page) {
     const colorItems = await page.$$(colorFlag);
     const dataObj = {};
+    let isHasImg = false;
+    for (let e of colorItems) {
+      const img = await e.$('.prop-img');
+      if (img) {
+        isHasImg = true;
+      }
+    }
     for (let e of colorItems) {
       const name = await e.$eval('.prop-name', d => d.innerText);
+      const img = await e.$('.prop-img');
+        if (isHasImg && !img) {
+        continue;
+      }
       const { x, y } = await e.boundingBox();
       await page.mouse.click(x, y);
       const returnData = await page.$$eval(sizeFlag, async(sizeItems) => {
