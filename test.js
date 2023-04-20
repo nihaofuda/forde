@@ -6,10 +6,19 @@ const fs = require('fs');
 const { initPrase, closeBrowser, getYouNeed, notFound, delist } = require('./praseHtml.js');
 // 最小库存量
 const NUM = 100;
+const arg = process.argv[2];
+const part =  Number(arg.split('-')[0]);
+const nowPart =  Number(arg.split('-')[1]);
+const numBrower = Number(process.argv[3] || 3); // 页面数量
+
 
 // excel文件类径
 const excelFilePath = './D&Y产品编号对照表.xlsx';
 const workbook = new ExcelJS.Workbook();
+
+const now = dayjs();
+const dateStr = now.format('YYYY-MM-DD');
+const chinese = excelFilePath.replace(/[^\u4e00-\u9fa5]/g, '') + '.xlsx';
 const redStyle = {
   fill: {
     type: 'pattern',
@@ -29,20 +38,26 @@ const Log = console.log;
 async function init() {
     //解析excel, 获取到所有sheets
 Log(chalk.green.bgWhite(`解析表格，表格路径为${excelFilePath}`));
-await workbook.xlsx.readFile(excelFilePath);
+if (nowPart === 1) {
+  await workbook.xlsx.readFile(excelFilePath);
+} else {
+  await workbook.xlsx.readFile(chinese);
+
+}
 // 女装
 const worksheet = workbook.getWorksheet('女装');
 Log(chalk.green.bgWhite(`成功获取表格数据`));
-const numBrower = 3; // 页面数量
 const newSheet = Array.from(Array(numBrower), () => []);
 const newSheetStatus = Array.from(Array(numBrower), () => false);
 let index = 0;
 
-const now = dayjs();
-const dateStr = now.format('YYYY-MM-DD');
-const chinese = excelFilePath.replace(/[^\u4e00-\u9fa5]/g, '') + '.xlsx';
+const lg = Math.ceil(worksheet.rowCount / part);
+console.log(`每次执行${lg}行数据`);
 
-for (let i = 0; i <= worksheet.rowCount; i++) {
+const handleCountList = Array.from(Array(part), (_, i) => i * lg);
+console.log(`当前从${handleCountList[nowPart-1]}行数据开始执行`);
+
+for (let i = handleCountList[nowPart-1]; i < Math.min(handleCountList[nowPart-1]+lg, worksheet.rowCount); i++) {
     if (i>=4) {
         const row = worksheet.getRow(i);
         for (let j = 0; j<= 2;j++) {
@@ -101,6 +116,7 @@ for (let i = 0; i <= worksheet.rowCount; i++) {
             // 所有任务都已完成，将结果写入文件
             await workbook.xlsx.writeFile(chinese);
             Log(chalk.green.bgWhite(`成功!!`));
+            process.exit();
         }
     });
     worker.send(newSheet[i]);

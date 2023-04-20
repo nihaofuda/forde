@@ -50,10 +50,16 @@ async function initPage() {
     width: 1200,
     height: 800
   });
+  page.testNum = 1;
   return page;
 }
 
 async function goToDetail(page, url) {
+  
+  if (page.testNum++ > 10) {
+    page.testNum =1;
+    await page.goto('about:blank');
+  }
   await page.goto(url, {timeout: 0});
 
   // 判断验证码拦截，模拟手动拖拽
@@ -70,6 +76,7 @@ async function goToDetail(page, url) {
     for (let i = 0 ; i< 300; i+=10) {
       await page.mouse.move(x+i, y);
     }
+    await page.bringToFront();
     await page.mouse.up();
   }
   // 判断是否是404，下架，从而进入详情页。
